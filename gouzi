@@ -1,0 +1,69 @@
+#!/bin/sh   
+    
+REPOS="$1"                  # 仓库的路径   
+REV="$2"                    # 新提交的版本号   
+LOGFILE=/var/log/svn.log    # 钩子脚本的日志   
+# 脚本的标准输出和标准错误输出都打印到日志文件里   
+exec 1>>"$LOGFILE" 
+exec 2>&1   
+    
+SVNLOOK=/usr/bin/svnlook  
+TIME=$(date "+%Y-%m-%d %H:%M:%S")   
+AUTHOR=$($SVNLOOK author -r $REV "$REPOS")  #提交作者   
+CHANGEDDIRS=$($SVNLOOK dirs-changed $REPOS) #修改的目录集合   
+MESSAGE=$($SVNLOOK log -r $REV "$REPOS")    #提交时的备注信息，不建议用中文   
+    
+# SVN客户端配置，需要自行修改**********************************   
+CLIENT1=172.16.4.235        #project1的服务器   
+CLIENT2=172.16.4.236        #project2的服务器   
+CLIENTSVNROOT=/data/apps    #WEB服务器的代码根目录   
+SVNUSER="zb" 
+SVNPASSWD="123456" 
+#**************************************************************   
+    
+    
+MASTERDIR=$(echo "$CHANGEDDIRS" | head -1)  #CHANGEDDIRS里的主目录   
+# 遍历提交的代码目录，同步到WEB服务器上   
+while [ "$CHANGEDDIRS" != "" ];do 
+
+ 
+    PROJECT=$(echo $MASTERDIR | awk -F / '{print $1}')   
+    # 判断项目文件夹   
+	
+	
+    if [ "$PROJECT" == "project1" ];then  
+
+        /usr/bin/ssh www@$CLIENT1 "export LANG=en_US.UTF-8; svn up --non-interactive --username $SVNUSER --password $SVNPASSWD '$CLIENTSVNROOT/$MASTERDIR'" 
+		
+    elif [ "$PROJECT" == "project2" ];then  
+
+        /usr/bin/ssh www@$CLIENT2 "export LANG=en_US.UTF-8; svn up --non-interactive --username $SVNUSER --password $SVNPASSWD '$CLIENTSVNROOT/$MASTERDIR'" 
+    fi  
+	
+    # 在目录集合里删除已经同步好的目录   
+    CHANGEDDIRS=$(echo "$CHANGEDDIRS" | grep -v "^$MASTERDIR")   
+    # 获取新的需要同步的主目录   
+    MASTERDIR=$(echo "$CHANGEDDIRS" | head -1)   
+	
+	
+done 
+
+
+
+
+
+
++ web1		commit log 
+- project1
+
+web2
+project2
+
+
+1. 项目是否变化
+2. 哪个项目
+3. svn拉取  svn update 
+
+
+
+
